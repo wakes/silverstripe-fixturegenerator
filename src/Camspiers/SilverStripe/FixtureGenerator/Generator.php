@@ -23,7 +23,11 @@ class Generator
      * This mode excludes generation of related objects (however relationships may still be generated)
      */
     const RELATED_OBJECT_EXCLUDE = 2;
-    /**
+	/**
+	 * This mode includes object IDs in the generated yml file
+	 */
+	const INCLUDE_OBJECT_KEYS = 4;
+	/**
      * @var DumperInterface
      */
     private $dumper;
@@ -172,7 +176,7 @@ class Generator
                 }
             }
         }
-
+		ksort($map[$className]);
         return $map;
     }
     /**
@@ -190,14 +194,18 @@ class Generator
      */
     private function getMap(DataObject $dataObject)
     {
+	    $includeKeys = ($this->mode & self::INCLUDE_OBJECT_KEYS) === self::INCLUDE_OBJECT_KEYS;
+
         $map = $dataObject->toMap();
         unset($map['Created']);
         unset($map['LastEdited']);
         unset($map['RecordClassName']);
         unset($map['ClassName']);
-        unset($map['ID']);
+	    if (!$includeKeys) {
+            unset($map['ID']);
+	    }
         foreach ($map as $key => $value) {
-            if (substr($key, -2) == 'ID') {
+            if (($key != 'ID') && substr($key, -2) == 'ID') {
                 unset($map[$key]);
             }
         }
@@ -210,16 +218,18 @@ class Generator
      */
     private function isAllowedRelation($relation)
     {
+	    $excludeRelationships = ($this->mode & self::RELATION_MODE_EXCLUDE) === self::RELATION_MODE_EXCLUDE;
+
         if (is_null($this->relations)) {
             return true;
         } else {
             foreach ($this->relations as $pattern) {
                 if (fnmatch($pattern, $relation)) {
-                    return !$this->mode;
+                    return !$excludeRelationships;
                 }
             }
 
-            return (boolean)$this->mode;
+            return $excludeRelationships;
         }
     }
 }
